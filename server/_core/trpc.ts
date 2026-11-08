@@ -9,7 +9,11 @@ import superjson from "superjson";
 import { canAccessModule, isOfficialRole } from "../services/memberAccountService";
 import { checkRateLimit, rateLimitKey } from "./rateLimit";
 import { checkPermission } from "../config/rbac";
-import { hasAccess, type ModuleAccessLevel } from "../config/modulePermissionService";
+import {
+  hasAccess,
+  isModuleEnabled,
+  type ModuleAccessLevel,
+} from "../config/modulePermissionService";
 import type { TrpcContext } from "./context";
 
 const t = initTRPC.context<TrpcContext>().create({
@@ -25,7 +29,144 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+
+const MODULE_PROCEDURE_PREFIXES: Record<string, string> = {
+  activities: "activities",
+  "admin.activities": "activities",
+  "enterprise.activities": "activities",
+  events: "events",
+  "admin.events": "events",
+  "enterprise.events": "events",
+  chapters: "chapters",
+  "admin.chapters": "chapters",
+  "admin.lc": "chapters",
+  "enterprise.chapters": "chapters",
+  "enterprise.lc": "chapters",
+  elections: "elections",
+  "admin.elections": "elections",
+  voting: "elections",
+  finance: "finance",
+  "admin.finance": "finance",
+  "enterprise.finance": "finance",
+  communications: "communications",
+  "admin.communications": "communications",
+  "enterprise.communications": "communications",
+  plenary: "governance",
+  governance: "governance",
+  "admin.plenary": "governance",
+  "enterprise.governanceDashboard": "governance",
+  "enterprise.governanceCalendar": "governance",
+  "enterprise.minutes": "governance",
+  "enterprise.nga": "governance",
+  nefNrf: "nef",
+  "admin.nefNrf": "nef",
+  documents: "documents",
+  document: "documents",
+  "admin.documents": "documents",
+  "enterprise.documents": "documents",
+  "enterprise.documentUploads": "documents",
+  "enterprise.googleDrive": "documents",
+  projects: "projects",
+  "admin.projects": "projects",
+  "enterprise.projects": "projects",
+  training: "training",
+  "admin.training": "training",
+  "enterprise.training": "training",
+  meetings: "meetings",
+  "enterprise.meetings": "meetings",
+  volunteers: "volunteer",
+  "enterprise.volunteers": "volunteer",
+  recognition: "recognition",
+  "enterprise.recognition": "recognition",
+  "member": "members",
+  membership: "members",
+  membershipForm: "members",
+  directory: "members",
+  cvMaker: "members",
+  card: "members",
+  "admin.members": "members",
+  "admin.membershipApplications": "members",
+  "admin.card": "members",
+  "admin.lifecycle": "members",
+  "enterprise.memberLifecycle": "members",
+  "enterprise.onboarding": "members",
+  opportunity: "recruitment",
+  "enterprise.applications": "recruitment",
+  "enterprise.integrations": "recruitment",
+  "myNotifications": "communications",
+  myWorkflows: "settings",
+  myForms: "settings",
+  config: "settings",
+  cms: "settings",
+  cmsAdmin: "settings",
+  "enterprise.disciplinary": "settings",
+  "enterprise.safeguarding": "settings",
+  "enterprise.feedback": "settings",
+  "enterprise.helpdesk": "settings",
+  "enterprise.inventory": "settings",
+  "enterprise.travel": "settings",
+  "enterprise.mfa": "settings",
+  "enterprise.impersonation": "settings",
+  "enterprise.analytics": "settings",
+  "enterprise.skills": "settings",
+  "enterprise.committees": "governance",
+  "enterprise.importExport": "settings",
+  "enterprise.institutions": "members",
+  "enterprise.privacy": "settings",
+  "enterprise.consent": "settings",
+  "enterprise.filters": "settings",
+  "enterprise.apiKeys": "settings",
+  "enterprise.ops": "settings",
+  "enterprise.accessibility": "settings",
+  "enterprise.saas": "settings",
+  "enterprise.workflows": "settings",
+  "enterprise.forms": "settings",
+  "enterprise.notifications": "communications",
+  "admin.workflows": "settings",
+  "admin.forms": "settings",
+  "admin.notifications": "communications",
+  "admin.disciplinary": "settings",
+  "admin.safeguarding": "settings",
+  "admin.feedback": "settings",
+  "admin.helpdesk": "settings",
+  "admin.inventory": "settings",
+  "admin.travel": "settings",
+  "admin.importExport": "settings",
+  "admin.analytics": "settings",
+  "admin.institutions": "members",
+};
+
+function moduleForProcedurePath(path: string): string | null {
+  const [root, child] = path.split(".");
+  if (
+    root === "auth" ||
+    root === "modulePermissions" ||
+    root === "comments" ||
+    (root === "admin" && child === "officials")
+  ) {
+    return null;
+  }
+
+  const prefix = child ? `${root}.${child}` : root;
+  const mappedModule = MODULE_PROCEDURE_PREFIXES[prefix];
+  if (mappedModule) return mappedModule;
+  if (root === "admin" || root === "enterprise") return "settings";
+  if (root === "config" || root === "cms" || root === "cmsAdmin") return "settings";
+  return null;
+}
+
+const enforceModuleAvailability = t.middleware(async ({ ctx, next, path }) => {
+  const moduleId = moduleForProcedurePath(path);
+  if (moduleId && !isModuleEnabled(moduleId)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "This module is not available yet. Please contact the Superadmin.",
+    });
+  }
+  return next({ ctx });
+});
+
+export const publicProcedure = t.procedure.use(enforceModuleAvailability);
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
@@ -42,7 +183,7 @@ const requireUser = t.middleware(async opts => {
   });
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+export const protectedProcedure = publicProcedure.use(requireUser);
 
 /**
  * Rate-limited public procedure. Counts every request against a per-IP
@@ -50,7 +191,7 @@ export const protectedProcedure = t.procedure.use(requireUser);
  * Over-limit requests receive tRPC code TOO_MANY_REQUESTS (HTTP 429).
  */
 export function rateLimitedProcedure(limit: number, windowMs: number) {
-  return t.procedure.use(
+  return publicProcedure.use(
     t.middleware(async opts => {
       const { ctx, next } = opts;
       const result = checkRateLimit(rateLimitKey(ctx.req), limit, windowMs);
@@ -65,7 +206,7 @@ export function rateLimitedProcedure(limit: number, windowMs: number) {
   );
 }
 
-export const adminProcedure = t.procedure.use(
+export const adminProcedure = publicProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
@@ -86,7 +227,7 @@ export const adminProcedure = t.procedure.use(
  * Any authenticated account on the official portal pathway: admins, super
  * admins and provisioned officials. Members are always rejected.
  */
-export const officialProcedure = t.procedure.use(
+export const officialProcedure = publicProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
@@ -104,7 +245,7 @@ export const officialProcedure = t.procedure.use(
 );
 
 /** Only the super admin can pass. Powers the officials-management portal. */
-export const superAdminProcedure = t.procedure.use(
+export const superAdminProcedure = publicProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 

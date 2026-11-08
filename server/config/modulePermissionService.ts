@@ -39,7 +39,8 @@ export const MODULE_LIST = [
   { id: "activities",   label: "Activities",   description: "Health camps, workshops, blood drives, etc." },
   { id: "events",       label: "Events",       description: "Conferences, competitions, summits, etc." },
   { id: "chapters",     label: "Chapters/LCs", description: "Local councils and regional chapters" },
-  { id: "members",      label: "Members",      description: "Member directory, profiles, membership" },
+  { id: "members",      label: "Membership Management", description: "Member records, profiles, verification, and membership history" },
+  { id: "recruitment",  label: "LC Recruitment", description: "Local Council vacancies, applications, interviews, and appointments" },
   { id: "finance",      label: "Finance",      description: "Budgets, expenses, transactions" },
   { id: "governance",   label: "Governance",   description: "Bylaws, motions, plenary, decisions" },
   { id: "elections",    label: "Elections",    description: "Elections, nominations, voting" },
@@ -56,6 +57,8 @@ export const MODULE_LIST = [
 ] as const;
 
 export type ModuleId = (typeof MODULE_LIST)[number]["id"];
+
+export const CORE_MODULE_IDS: readonly ModuleId[] = ["members", "recruitment"];
 
 // Access level hierarchy for comparison
 const ACCESS_RANK: Record<ModuleAccessLevel, number> = {
@@ -78,12 +81,14 @@ interface StoredPermissions {
   permissions: Record<string, ModuleAccessLevel>;
   defaultAccess: ModuleAccessLevel;
   superadminOverrides: Record<string, ModuleAccessLevel>;
+  enabledModules: Partial<Record<ModuleId, boolean>>;
 }
 
 let store: StoredPermissions = {
   permissions: {},
   defaultAccess: "view",
   superadminOverrides: {},
+  enabledModules: {},
 };
 
 function loadStore(): void {
@@ -105,6 +110,7 @@ function saveStore(): void {
     fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
   } catch (err) {
     console.error("[ModulePermissions] Failed to save store:", err);
+    throw err;
   }
 }
 
@@ -159,6 +165,50 @@ export function getAllModuleAccess(
     result[mod.id] = getModuleAccess(userId, userRole, mod.id, moduleAccessList);
   }
   return result;
+}
+
+/**
+ * Core modules are always on for the current development phase. All other
+ * known modules remain off until a superadmin explicitly enables them.
+ */
+export function isModuleEnabled(moduleId: string): boolean {
+  const module = MODULE_LIST.find((item) => item.id === moduleId);
+  if (!module) return true;
+  if (CORE_MODULE_IDS.includes(module.id)) return true;
+  return store.enabledModules[module.id] ?? false;
+}
+
+export function getModuleAvailability(): Array<{
+  id: ModuleId;
+  label: string;
+  description: string;
+  enabled: boolean;
+  locked: boolean;
+}> {
+  return MODULE_LIST.map((module) => ({
+    ...module,
+    enabled: isModuleEnabled(module.id),
+    locked: CORE_MODULE_IDS.includes(module.id),
+  }));
+}
+
+export function getModuleAvailabilityMap(): Record<string, boolean> {
+  return Object.fromEntries(
+    MODULE_LIST.map((module) => [module.id, isModuleEnabled(module.id)])
+  );
+}
+
+export function setModuleEnabled(moduleId: string, enabled: boolean): void {
+  const module = MODULE_LIST.find((item) => item.id === moduleId);
+  if (!module) {
+    throw new Error(`Unknown module: ${moduleId}`);
+  }
+  if (CORE_MODULE_IDS.includes(module.id) && !enabled) {
+    throw new Error(`${module.label} must remain enabled during the current phase.`);
+  }
+
+  store.enabledModules[module.id] = enabled;
+  saveStore();
 }
 
 /**
@@ -277,6 +327,7 @@ export function hasAccess(
   requiredLevel: ModuleAccessLevel,
   moduleAccessList: string[] | null = null
 ): boolean {
+  if (!isModuleEnabled(moduleId)) return false;
   const actual = getModuleAccess(userId, userRole, moduleId, moduleAccessList);
   return ACCESS_RANK[actual] >= ACCESS_RANK[requiredLevel];
 }
@@ -370,6 +421,7 @@ export function resetAllPermissions(): void {
     permissions: {},
     defaultAccess: "view",
     superadminOverrides: {},
+    enabledModules: {},
   };
   saveStore();
 }

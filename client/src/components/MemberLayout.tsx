@@ -67,10 +67,10 @@ const navItems = [
   { icon: Calendar, label: "Meetings", path: "/meetings", module: "meetings" },
   { icon: Flag, label: "NGA Portal", path: "/nga", module: "governance" },
   { icon: Vote, label: "Voting", path: "/voting", module: "governance" },
-  { icon: Briefcase, label: "Opportunities", path: "/opportunities", module: null },
-  { icon: BookOpen, label: "CV Maker", path: "/cv-maker", module: null },
+  { icon: Briefcase, label: "Opportunities", path: "/opportunities", module: "recruitment" },
+  { icon: BookOpen, label: "CV Maker", path: "/cv-maker", module: "members" },
   { icon: Users, label: "Directory", path: "/directory", module: "members" },
-  { icon: IdCard, label: "Membership Card", path: "/membership-card", module: null },
+  { icon: IdCard, label: "Membership Card", path: "/membership-card", module: "members" },
   { icon: Settings, label: "Settings", path: "/settings", module: null },
 ];
 
@@ -158,6 +158,16 @@ function MemberLayoutContent({ children, setSidebarWidth }: MemberLayoutContentP
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const activeItem = navItems.find((item) => location.split("?")[0] === item.path);
+  const visibleNavItems = navItems.filter(
+    (item) =>
+      !item.module ||
+      moduleAccess.loading ||
+      moduleAccess.isModuleEnabled(item.module)
+  );
+  const moduleUnavailable =
+    !moduleAccess.loading &&
+    Boolean(activeItem?.module) &&
+    !moduleAccess.isModuleEnabled(activeItem!.module!);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -221,7 +231,7 @@ function MemberLayoutContent({ children, setSidebarWidth }: MemberLayoutContentP
           {/* Navigation */}
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
@@ -314,7 +324,16 @@ function MemberLayoutContent({ children, setSidebarWidth }: MemberLayoutContentP
             <MSAPLogo variant="horizontal-compact" tone="brand" className="w-28" />
           </div>
         )}
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          {moduleUnavailable ? (
+            <div className="mx-auto max-w-3xl px-6 py-16 text-center" role="status">
+              <h1 className="text-xl font-semibold text-[#1B355E]">Module not available yet</h1>
+              <p className="mt-2 text-sm text-[#66788D]">
+                This module is being developed and has not been opened by the Superadmin.
+              </p>
+            </div>
+          ) : children}
+        </main>
       </SidebarInset>
     </>
   );

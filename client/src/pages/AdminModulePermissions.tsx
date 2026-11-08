@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -16,6 +17,8 @@ import {
   ChevronDown,
   Check,
   RefreshCw,
+  Power,
+  LockKeyhole,
 } from "lucide-react";
 
 // ============================================================================
@@ -55,6 +58,7 @@ export default function AdminModulePermissions() {
   const [, navigate] = useLocation();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const utils = trpc.useUtils();
 
   // ── Redirect if not superadmin ──
   if (!authLoading && user && user.role !== "superadmin") {
@@ -65,6 +69,7 @@ export default function AdminModulePermissions() {
   // ── Queries ──
   const modulesQuery = trpc.modulePermissions.modules.useQuery();
   const summaryQuery = trpc.modulePermissions.getSummary.useQuery();
+  const availabilityQuery = trpc.modulePermissions.availability.useQuery();
   const userPermsQuery = trpc.modulePermissions.getUserPermissions.useQuery(
     { userId: selectedUserId! },
     { enabled: selectedUserId !== null }
@@ -101,6 +106,17 @@ export default function AdminModulePermissions() {
     onError: (err) => toast.error(err.message),
   });
 
+  const setAvailability = trpc.modulePermissions.setAvailability.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        availabilityQuery.refetch(),
+        utils.modulePermissions.myAccess.invalidate(),
+      ]);
+      toast.success("Module availability updated");
+    },
+    onError: (err) => toast.error(err.message || "Failed to update module availability"),
+  });
+
   // ── Loading state ──
   if (authLoading || !user) {
     return (
@@ -113,6 +129,8 @@ export default function AdminModulePermissions() {
   if (user.role !== "superadmin") return null;
 
   const modules = modulesQuery.data?.modules ?? [];
+  const availability = availabilityQuery.data ?? [];
+  const enabledModulesCount = availability.filter((module) => module.enabled).length;
   const summary = summaryQuery.data?.summary;
   const defaultAccess = summaryQuery.data?.defaultAccess ?? "view";
   const userPerms = userPermsQuery.data?.permissions ?? [];
@@ -193,6 +211,70 @@ export default function AdminModulePermissions() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Power className="h-5 w-5" />
+              Module Availability
+            </CardTitle>
+            <CardDescription>
+              Keep this launch focused on Membership Management and LC Recruitment. Other modules are off until you are ready to develop and open them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {availabilityQuery.isLoading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground" role="status">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading module availability…
+              </div>
+            ) : availabilityQuery.error ? (
+              <p className="py-4 text-sm text-destructive" role="alert">
+                Could not load module availability: {availabilityQuery.error.message}
+              </p>
+            ) : (
+              <>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {enabledModulesCount} of {availability.length} modules currently available
+                  </p>
+                  <Badge variant="outline" className="gap-1">
+                    <LockKeyhole className="h-3 w-3" />
+                    Core modules stay on
+                  </Badge>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {availability.map((module) => (
+                    <div
+                      key={module.id}
+                      className="flex items-center justify-between gap-4 rounded-lg border bg-white p-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-sm">{module.label}</h3>
+                          <Badge variant={module.enabled ? "default" : "secondary"}>
+                            {module.locked ? "Core" : module.enabled ? "Open" : "Closed"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {module.description}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={module.enabled}
+                        disabled={module.locked || setAvailability.isPending}
+                        onCheckedChange={(enabled) =>
+                          setAvailability.mutate({ moduleId: module.id, enabled })
+                        }
+                        aria-label={`${module.enabled ? "Disable" : "Enable"} ${module.label}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Module Permission Matrix */}
         <Card className="mb-8">

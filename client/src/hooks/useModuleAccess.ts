@@ -9,11 +9,44 @@ export interface ModuleAccessResult {
   hasAccess: (moduleId: string, required: ModuleAccessLevel) => boolean;
   /** Raw access map from the server. */
   access: Record<string, ModuleAccessLevel> | null;
+  /** Whether a module is globally available in the current development phase. */
+  isModuleEnabled: (moduleId: string) => boolean;
   /** Whether the query is still loading. */
   loading: boolean;
 }
 
 const RANK: Record<ModuleAccessLevel, number> = { view: 0, comment: 1, edit: 2 };
+const MODULE_ALIASES: Record<string, string> = {
+  "nef-nrf": "nef",
+  config: "settings",
+  modules: "settings",
+  "governance-config": "governance",
+  lifecycle: "members",
+  cards: "members",
+  audit: "settings",
+  officials: "settings",
+};
+const KNOWN_MODULE_IDS = new Set([
+  "activities",
+  "events",
+  "chapters",
+  "members",
+  "recruitment",
+  "finance",
+  "governance",
+  "elections",
+  "documents",
+  "training",
+  "projects",
+  "meetings",
+  "communications",
+  "nef",
+  "credentials",
+  "volunteer",
+  "recognition",
+  "settings",
+]);
+const CORE_MODULE_IDS = new Set(["members", "recruitment"]);
 
 /**
  * Returns the current user's per-module access levels.
@@ -32,6 +65,7 @@ export function useModuleAccess(): ModuleAccessResult {
   );
 
   const access = data?.access ?? null;
+  const enabledModules = data?.enabledModules ?? null;
 
   const getAccess = (moduleId: string): ModuleAccessLevel | null => {
     if (!access) return null;
@@ -44,5 +78,17 @@ export function useModuleAccess(): ModuleAccessResult {
     return RANK[actual] >= RANK[required];
   };
 
-  return { getAccess, hasAccess, access, loading: isLoading };
+  const isModuleEnabled = (moduleId: string): boolean => {
+    const canonicalModuleId = MODULE_ALIASES[moduleId] ?? moduleId;
+    if (!enabledModules) {
+      if (isLoading) return true;
+      return (
+        CORE_MODULE_IDS.has(canonicalModuleId) ||
+        !KNOWN_MODULE_IDS.has(canonicalModuleId)
+      );
+    }
+    return enabledModules[canonicalModuleId] ?? true;
+  };
+
+  return { getAccess, hasAccess, access, isModuleEnabled, loading: isLoading };
 }

@@ -17,6 +17,10 @@ import {
   getDefaultAccess,
   resetAllPermissions,
   setBulkModuleAccess,
+  getModuleAvailability,
+  isModuleEnabled,
+  setModuleEnabled,
+  CORE_MODULE_IDS,
   MODULE_LIST,
   ACCESS_LEVEL_LABELS,
   type ModuleAccessLevel,
@@ -34,6 +38,37 @@ describe("ModulePermissionService", () => {
   describe("Default access", () => {
     it("defaults to 'view'", () => {
       expect(getDefaultAccess()).toBe("view");
+    });
+
+    describe("Module availability", () => {
+      it("keeps membership and recruitment enabled while other modules start closed", () => {
+        expect(CORE_MODULE_IDS).toEqual(["members", "recruitment"]);
+        expect(isModuleEnabled("members")).toBe(true);
+        expect(isModuleEnabled("recruitment")).toBe(true);
+        expect(isModuleEnabled("activities")).toBe(false);
+      });
+
+      it("allows a superadmin to open and close a non-core module", () => {
+        setModuleEnabled("activities", true);
+        expect(isModuleEnabled("activities")).toBe(true);
+
+        setModuleEnabled("activities", false);
+        expect(isModuleEnabled("activities")).toBe(false);
+      });
+
+      it("does not allow a core module to be disabled", () => {
+        expect(() => setModuleEnabled("members", false)).toThrow(/must remain enabled/i);
+        expect(() => setModuleEnabled("recruitment", false)).toThrow(/must remain enabled/i);
+      });
+
+      it("returns availability metadata for every module", () => {
+        const availability = getModuleAvailability();
+        expect(availability).toHaveLength(MODULE_LIST.length);
+        expect(availability.find((module) => module.id === "members")).toMatchObject({
+          enabled: true,
+          locked: true,
+        });
+      });
     });
 
     it("can change default access", () => {
@@ -162,6 +197,10 @@ describe("ModulePermissionService", () => {
   // ============================================================================
 
   describe("hasAccess", () => {
+    beforeEach(() => {
+      setModuleEnabled("activities", true);
+    });
+
     it("view level allows view", () => {
       expect(hasAccess(10, "user", "activities", "view")).toBe(true);
     });
@@ -202,6 +241,10 @@ describe("ModulePermissionService", () => {
   });
 
   describe("canView / canComment / canEdit", () => {
+    beforeEach(() => {
+      setModuleEnabled("activities", true);
+    });
+
     it("canView returns true for default (view)", () => {
       expect(canView(10, "user", "activities")).toBe(true);
     });
@@ -228,6 +271,11 @@ describe("ModulePermissionService", () => {
       expect(canView(1, "superadmin", "any")).toBe(true);
       expect(canComment(1, "superadmin", "any")).toBe(true);
       expect(canEdit(1, "superadmin", "any")).toBe(true);
+    });
+
+    it("denies access to a closed module even for a superadmin", () => {
+      setModuleEnabled("activities", false);
+      expect(canEdit(1, "superadmin", "activities")).toBe(false);
     });
   });
 

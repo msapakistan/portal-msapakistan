@@ -4497,16 +4497,52 @@ export const appRouter = router({
     /** Get current user's access levels across all modules */
     myAccess: protectedProcedure.query(async ({ ctx }) => {
       const user = ctx.user!;
-      const { getAllModuleAccess, MODULE_LIST } = await import("./config/modulePermissionService");
+      const {
+        getAllModuleAccess,
+        getModuleAvailabilityMap,
+        MODULE_LIST,
+      } = await import("./config/modulePermissionService");
       const access = getAllModuleAccess(user.id, user.role, user.moduleAccess ?? null);
       return {
         userId: user.id,
         role: user.role,
         moduleAccess: user.moduleAccess,
         access,
+        enabledModules: getModuleAvailabilityMap(),
         modules: MODULE_LIST,
       };
     }),
+
+    /** Global module availability (superadmin only). */
+    availability: superAdminProcedure.query(async () => {
+      const { getModuleAvailability } = await import("./config/modulePermissionService");
+      return getModuleAvailability();
+    }),
+
+    /** Enable or disable a module for the whole portal (superadmin only). */
+    setAvailability: superAdminProcedure
+      .input(z.object({
+        moduleId: z.string().min(1).max(50),
+        enabled: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { getModuleAvailability, setModuleEnabled } = await import("./config/modulePermissionService");
+        const previous = getModuleAvailability().find((module) => module.id === input.moduleId);
+        setModuleEnabled(input.moduleId, input.enabled);
+        if (previous && previous.enabled !== input.enabled) {
+          await logAuditForUser(
+            ctx.user!,
+            input.enabled ? "module.enabled" : "module.disabled",
+            {
+              category: "admin",
+              entityType: "portal_module",
+              after: { moduleId: input.moduleId, enabled: input.enabled },
+              before: { moduleId: input.moduleId, enabled: previous.enabled },
+            },
+          );
+        }
+        return { modules: getModuleAvailability() };
+      }),
 
     /** Get a user's permissions (superadmin only) */
     getUserPermissions: superAdminProcedure

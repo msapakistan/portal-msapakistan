@@ -201,7 +201,10 @@ export default function OfficialLayout({
     ? NAV_GROUPS.map((group) => ({
         ...group,
         items: group.items.filter(
-          (item) => !item.module || canAccessModule(user, item.module)
+          (item) =>
+            (user.role === "superadmin" && item.path === "/admin/module-permissions") ||
+            ((!item.module || moduleAccess.isModuleEnabled(item.module)) &&
+              (!item.module || canAccessModule(user, item.module)))
         ),
       })).filter((group) => group.items.length > 0)
     : [];
@@ -222,6 +225,14 @@ export default function OfficialLayout({
 
   // Auto-expand the group containing the active page
   const activePath = location.split("?")[0];
+  const activeNavItem = NAV_GROUPS.flatMap((group) => group.items).find(
+    (item) => item.path === activePath
+  );
+  const moduleUnavailable =
+    activePath !== "/admin/module-permissions" &&
+    !moduleAccess.loading &&
+    Boolean(activeNavItem?.module) &&
+    !moduleAccess.isModuleEnabled(activeNavItem?.module ?? "");
   useEffect(() => {
     for (const group of visibleGroups) {
       if (group.items.some((item) => item.path === activePath)) {
@@ -490,7 +501,14 @@ export default function OfficialLayout({
                 ended. Contact the Super Admin to renew.
               </div>
             )}
-          {children}
+          {moduleUnavailable ? (
+            <div className="mx-auto max-w-3xl py-16 text-center" role="status">
+              <h1 className="text-xl font-semibold text-[#1B355E]">Module not available yet</h1>
+              <p className="mt-2 text-sm text-[#66788D]">
+                This module is being developed and has not been opened by the Superadmin.
+              </p>
+            </div>
+          ) : children}
         </main>
       </div>
     </div>

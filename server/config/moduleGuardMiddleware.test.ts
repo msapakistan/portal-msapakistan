@@ -14,8 +14,10 @@ import {
   setModuleAccess,
   resetAllPermissions,
   hasAccess,
+  isModuleEnabled,
   MODULE_LIST,
   setDefaultAccess,
+  setModuleEnabled,
 } from "./modulePermissionService";
 
 // ---------------------------------------------------------------------------
@@ -30,6 +32,10 @@ function evaluateModuleGuard(
   requiredLevel: "view" | "comment" | "edit",
   moduleAccessList: string[] | null = null,
 ): { allowed: boolean; reason?: string } {
+  if (!isModuleEnabled(moduleId)) {
+    return { allowed: false, reason: `The ${moduleId} module is not available.` };
+  }
+
   // Superadmin always passes
   if (userRole === "superadmin") return { allowed: true };
 
@@ -46,6 +52,13 @@ function evaluateModuleGuard(
   return { allowed: true };
 }
 
+function resetAndEnableAllModules() {
+  resetAllPermissions();
+  for (const module of MODULE_LIST) {
+    setModuleEnabled(module.id, true);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
@@ -58,7 +71,7 @@ const OFFICIAL_USER = { id: 20, role: "official" };
 
 describe("moduleGuardedProcedure — access resolution", () => {
   beforeEach(() => {
-    resetAllPermissions();
+    resetAndEnableAllModules();
   });
 
   it("superadmin always passes regardless of module permissions", () => {
@@ -153,7 +166,7 @@ describe("moduleGuardedProcedure — access resolution", () => {
 
 describe("moduleGuardedProcedure — per-module isolation", () => {
   beforeEach(() => {
-    resetAllPermissions();
+    resetAndEnableAllModules();
   });
 
   it("permissions are per-module (one module does not grant another)", () => {
@@ -178,9 +191,9 @@ describe("moduleGuardedProcedure — per-module isolation", () => {
   });
 });
 
-describe("moduleGuardedProcedure — all 17 modules", () => {
+describe("moduleGuardedProcedure — all modules", () => {
   beforeEach(() => {
-    resetAllPermissions();
+    resetAndEnableAllModules();
   });
 
   it("every module in MODULE_LIST is guardable", () => {
@@ -198,7 +211,7 @@ describe("moduleGuardedProcedure — all 17 modules", () => {
 
 describe("moduleGuardedProcedure — edge cases", () => {
   beforeEach(() => {
-    resetAllPermissions();
+    resetAndEnableAllModules();
   });
 
   it("granting then revoking reverts to default", () => {
@@ -245,7 +258,7 @@ describe("moduleGuardedProcedure — edge cases", () => {
 
 describe("moduleGuardedProcedure — role-based resolution via getModuleAccess", () => {
   beforeEach(() => {
-    resetAllPermissions();
+    resetAndEnableAllModules();
   });
 
   it("superadmin always returns 'edit' from getModuleAccess", () => {
