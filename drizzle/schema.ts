@@ -608,6 +608,12 @@ export const membershipApplications = mysqlTable(
     conflictOfInterest: varchar("conflictOfInterest", { length: 2000 }).default("No"),
     conflictOrganization: varchar("conflictOrganization", { length: 255 }),
     conflictRole: varchar("conflictRole", { length: 255 }),
+    // Optional Local Council recruitment application details
+    recruitmentLocalCouncil: varchar("recruitmentLocalCouncil", { length: 255 }),
+    recruitmentPosition: varchar("recruitmentPosition", { length: 255 }),
+    motivationLetter: text("motivationLetter"),
+    planOfAction: text("planOfAction"),
+    cvUrl: varchar("cvUrl", { length: 500 }),
     // File uploads (data URLs stored for review; uploaded to storage on approval)
     profilePhotoUrl: varchar("profilePhotoUrl", { length: 500 }),
     feeReceiptUrl: varchar("feeReceiptUrl", { length: 500 }),

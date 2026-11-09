@@ -46,7 +46,7 @@ const KNOWN_MODULE_IDS = new Set([
   "recognition",
   "settings",
 ]);
-const CORE_MODULE_IDS = new Set(["members", "recruitment"]);
+const CORE_MODULE_IDS = new Set(["members"]);
 
 /**
  * Returns the current user's per-module access levels.

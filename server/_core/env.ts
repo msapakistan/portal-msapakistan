@@ -5,8 +5,11 @@ export const ENV = {
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
   isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  s3Endpoint: process.env.S3_ENDPOINT ?? "",
+  s3Bucket: process.env.S3_BUCKET ?? "",
+  s3Region: process.env.S3_REGION ?? "auto",
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
   // Member portal configuration
   appsScriptUrl: process.env.MSAP_APPS_SCRIPT_URL ?? "",
   portalBaseUrl: process.env.PORTAL_BASE_URL ?? "",

@@ -67,7 +67,7 @@ const navItems = [
   { icon: Calendar, label: "Meetings", path: "/meetings", module: "meetings" },
   { icon: Flag, label: "NGA Portal", path: "/nga", module: "governance" },
   { icon: Vote, label: "Voting", path: "/voting", module: "governance" },
-  { icon: Briefcase, label: "Opportunities", path: "/opportunities", module: "recruitment" },
+  { icon: Briefcase, label: "LC Recruitment", path: "/opportunities", module: "recruitment" },
   { icon: BookOpen, label: "CV Maker", path: "/cv-maker", module: "members" },
   { icon: Users, label: "Directory", path: "/directory", module: "members" },
   { icon: IdCard, label: "Membership Card", path: "/membership-card", module: "members" },

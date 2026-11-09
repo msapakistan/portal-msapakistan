@@ -33,8 +33,11 @@ first and do not run migrations as part of every deployment.
 
 Before switching real members to the portal, configure and test transactional
 email (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and
-`FROM_EMAIL`) and the storage credentials required for document uploads
-(`BUILT_IN_FORGE_API_URL` and `BUILT_IN_FORGE_API_KEY`). Configure any OAuth
+`FROM_EMAIL`) and private S3-compatible object storage for document uploads.
+Cloudflare R2 is supported with `S3_ENDPOINT` set to
+`https://<account-id>.r2.cloudflarestorage.com`, `S3_REGION=auto`, and the
+bucket name and access-key credentials provided by R2. Keep the bucket private;
+the application issues short-lived signed download URLs. Configure any OAuth
 or Apps Script integrations only if they are enabled for the production
 workflow. Enter secrets only in hPanel, not in Git or chat.
 
@@ -117,11 +120,10 @@ not an uptime guarantee. For larger volumes, use an appropriate transactional
 email provider instead.
 
 Workspace Drive's pooled storage is also **not automatically connected** to
-the portal's uploads. The current portal's upload helper requires the configured
-Forge storage API credentials; its Google Drive engine is currently
-process-local, not a persistent Drive API integration. Using Workspace Drive
-for member uploads requires a separate Drive API integration, access-control
-design, and testing before replacing object storage.
+the portal's uploads. The Google Drive engine is currently process-local, not
+a persistent Drive API integration. Using Workspace Drive for member uploads
+requires a separate Drive API integration, access-control design, and testing
+before replacing the configured S3-compatible object storage.
 
 With Workspace covering email, plan roughly **$35–$50/month** for the
 always-on pilot and **$95–$125/month** for the redundant production target,
@@ -180,11 +182,11 @@ other sensitive personal information to this free-tier deployment. Review the
 platform terms, data location, privacy obligations, and backup/recovery plan
 before any real-member pilot.
 
-The app's file-upload helpers require `BUILT_IN_FORGE_API_URL` and
-`BUILT_IN_FORGE_API_KEY`; the documented `STORAGE_PROVIDER=local` option does
-not configure the current upload implementation. Do not rely on local disk for
-uploads on Render Free. Configure the Forge storage credentials before testing
-upload-dependent flows, or leave those flows out of the beta.
+The app's file-upload helpers require private S3-compatible object storage,
+configured with `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`,
+`S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`. Do not rely on local disk for
+uploads on Render Free. Configure and test the object-storage credentials
+before enabling upload-dependent flows, or leave those flows out of the beta.
 
 Render Free blocks outbound SMTP ports 25, 465, and 587. Email delivery
 therefore requires an SMTP provider that supports a permitted alternate port
@@ -232,7 +234,8 @@ automatic Render build step.
    `https://portal.msapakistan.org`.
 4. In the Render service's **Environment** page, add any integration settings
    needed for the flows in scope:
-   - `BUILT_IN_FORGE_API_URL` and `BUILT_IN_FORGE_API_KEY` for uploads.
+   - `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, and
+     `S3_SECRET_ACCESS_KEY` for private object storage.
    - `MSAP_APPS_SCRIPT_URL` if membership lookup/sync uses the Apps Script.
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and any required
      sender settings. On Render Free, use a provider-supported SMTP port other
@@ -270,7 +273,7 @@ expect cold starts on the custom domain.
 - [ ] The custom domain resolves to Render and managed HTTPS is active.
 - [ ] Password setup/login works with the intended identity source.
 - [ ] Email delivery is tested through a port Render Free permits.
-- [ ] Uploads are tested with the configured Forge storage credentials, or
+- [ ] Uploads are tested with the configured private S3 storage, or
       upload-dependent flows are excluded from the beta.
 - [ ] Free-tier beta uses only synthetic or explicitly approved test data;
       database backup and restore have been tested.
@@ -303,9 +306,12 @@ SMTP_PORT=<provider-supported-port>
 SMTP_USER=
 SMTP_PASSWORD=
 
-# File uploads (required for upload-dependent flows)
-BUILT_IN_FORGE_API_URL=
-BUILT_IN_FORGE_API_KEY=
+# Private S3-compatible file uploads (required for upload-dependent flows)
+S3_ENDPOINT=
+S3_BUCKET=
+S3_REGION=auto
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
 
 # Portal
 PORTAL_BASE_URL=https://portal.msapakistan.org

@@ -725,6 +725,7 @@ describe("officials & module access (super-admin provisioned)", () => {
   it("canAccessModule enforces the role matrix", () => {
     const member = { role: "user", moduleAccess: [] };
     const official = { role: "official", moduleAccess: ["card-queue"] };
+    const vpm = { role: "official", officialPosition: "vpm", moduleAccess: [] };
     const admin = { role: "admin", moduleAccess: [] };
     const superadmin = { role: "superadmin", moduleAccess: [] };
 
@@ -733,6 +734,7 @@ describe("officials & module access (super-admin provisioned)", () => {
     // Officials only what they were granted.
     expect(canAccessModule(official, "card-queue")).toBe(true);
     expect(canAccessModule(official, "recruitment")).toBe(false);
+    expect(canAccessModule(vpm, "members")).toBe(true);
     // Admins inherit every official module.
     expect(canAccessModule(admin, "recruitment")).toBe(true);
     expect(canAccessModule(admin, "config")).toBe(true);

@@ -87,7 +87,7 @@ async function startServer() {
   registerHealthRoutes(app);
 
   // Print-ready premium membership card PDF. Streamed straight from the
-  // server (no storage dependency) so it works even before Forge storage is
+  // server (no object-storage dependency) so it works even before storage is
   // provisioned. Session-authenticated via the same httpOnly cookie as tRPC.
   app.get("/api/card-pdf", async (req, res) => {
     // PDF generation is CPU/memory heavy; cap per-IP regeneration. The

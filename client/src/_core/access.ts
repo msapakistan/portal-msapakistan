@@ -62,6 +62,7 @@ export const OFFICIAL_MODULES = [
   "lifecycle",
   "cards",
   "audit",
+  "members",
 ] as const;
 export type OfficialModule = (typeof OFFICIAL_MODULES)[number];
 
@@ -107,6 +108,7 @@ export const OFFICIAL_MODULE_LABELS: Record<string, string> = {
   lifecycle: "Membership Lifecycle",
   cards: "Card Queue",
   audit: "Audit Log",
+  members: "Membership Applications",
   officials: "Officials Management",
 };
 
@@ -127,6 +129,7 @@ export const OFFICIAL_MODULE_DESCRIPTIONS: Record<string, string> = {
   lifecycle: "Audited suspend / terminate / reinstate cases",
   cards: "Approve holder signatures and card re-issues",
   audit: "Audit trail of all admin actions",
+  members: "Verify membership applications and issue portal access",
   officials: "Provision officials and open modules for them",
 };
 
@@ -168,7 +171,7 @@ const POSITION_MODULE_MAP: Record<string, string[]> = {
   vpi: ["lifecycle", "officials", "governance"],
   vpe: ["communications"],
   vpcb: ["activities"],
-  vpm: ["documents", "governance"],
+  vpm: ["documents", "governance", "members"],
   supco: ["dashboard", "activities", "events", "elections", "finance", "documents", "communications", "plenary", "nef-nrf", "config", "modules", "governance", "governance-config", "lifecycle", "cards", "audit"],
   npo: ["activities"], // SCOPH
   norp: ["activities"], // SCORP

@@ -1040,6 +1040,15 @@ export const appRouter = router({
           conflictOrganization: z.string().max(255).optional(),
           conflictRole: z.string().max(255).optional(),
           paymentAccountName: z.string().min(2).max(255),
+          recruitmentLocalCouncil: z.string().max(255).optional(),
+          recruitmentPosition: z.string().max(255).optional(),
+          motivationLetter: z.string().max(10000).optional(),
+          planOfAction: z.string().max(10000).optional(),
+          cv: z.object({
+            fileName: z.string().max(180),
+            mimeType: z.literal("application/pdf"),
+            base64: z.string().max(11_000_000),
+          }).optional(),
         })
       )
       .mutation(async ({ input }) => {
@@ -1071,7 +1080,51 @@ export const appRouter = router({
           }
         }
 
-        const result = await submitMembershipApplication(input);
+        const hasRecruitmentDetails = Boolean(
+          input.recruitmentLocalCouncil ||
+          input.recruitmentPosition ||
+          input.motivationLetter ||
+          input.planOfAction ||
+          input.cv
+        );
+        if (hasRecruitmentDetails) {
+          const { isModuleEnabled } = await import("./config/modulePermissionService");
+          if (!isModuleEnabled("recruitment")) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Local Council recruitment applications are currently closed.",
+            });
+          }
+          if (
+            !input.recruitmentLocalCouncil?.trim() ||
+            !input.recruitmentPosition?.trim() ||
+            !input.motivationLetter?.trim() ||
+            !input.planOfAction?.trim() ||
+            !input.cv
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Complete all recruitment details and upload your PDF CV.",
+            });
+          }
+          const cvError = validateUpload(input.cv, ["pdf"]);
+          if (cvError) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `CV: ${cvError}`,
+            });
+          }
+        }
+
+        const application = input;
+        const portalOnly = hasRecruitmentDetails;
+        const result = await submitMembershipApplication(application, { portalOnly });
+        if (!result.ok) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: result.message || "An application with this information is already on file.",
+          });
+        }
         return {
           success: true,
           applicationRef: result.data?.applicationRef,
@@ -1500,10 +1553,10 @@ export const appRouter = router({
        * never duplicates accounts, never resends the setup email when a valid
        * token is already pending. Pass resendSetupEmail to force a fresh link.
        *
-       * Gated to the recruitment module because it creates accounts and can
+       * Gated to membership management because it creates member accounts and can
        * trigger setup emails for arbitrary identifiers.
        */
-      syncApprovedMember: officialModuleProcedure("recruitment")
+      syncApprovedMember: officialModuleProcedure("members")
         .input(
           z.object({
             identifier: z.string().min(1).max(255),
@@ -1520,7 +1573,7 @@ export const appRouter = router({
     // ===== Membership applications (local/offline review) =====
     membershipApplications: router({
       /** List membership applications with optional status filter. */
-      list: officialModuleProcedure("recruitment")
+      list: officialModuleProcedure("members")
         .input(
           z.object({
             status: z.enum(["pending", "approved", "rejected"]).optional(),
@@ -1534,7 +1587,7 @@ export const appRouter = router({
         }),
 
       /** Get full details of one application. */
-      get: officialModuleProcedure("recruitment")
+      get: officialModuleProcedure("members")
         .input(z.object({ applicationId: z.number().int().positive() }))
         .query(async ({ input }) => {
           return db.getMembershipApplication(input.applicationId);
@@ -1544,7 +1597,7 @@ export const appRouter = router({
        * Approve a membership application. Creates the member account,
        * assigns a membership ID, and issues a password setup token.
        */
-      approve: officialModuleProcedure("recruitment")
+      approve: officialModuleProcedure("members")
         .input(
           z.object({
             applicationId: z.number().int().positive(),
@@ -1557,7 +1610,7 @@ export const appRouter = router({
           if (!actor) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
           }
-          const result = db.approveMembershipApplication(
+          const result = await db.approveMembershipApplication(
             input.applicationId,
             input.membershipId,
             actor.name || actor.email,
@@ -1575,11 +1628,11 @@ export const appRouter = router({
             entityId: input.applicationId,
             after: { membershipId: input.membershipId, notes: input.notes },
           });
-          return { success: true, user: result };
+          return { success: true, membershipId: input.membershipId };
         }),
 
       /** Reject a membership application. */
-      reject: officialModuleProcedure("recruitment")
+      reject: officialModuleProcedure("members")
         .input(
           z.object({
             applicationId: z.number().int().positive(),
@@ -1591,7 +1644,7 @@ export const appRouter = router({
           if (!actor) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
           }
-          const result = db.rejectMembershipApplication(
+          const result = await db.rejectMembershipApplication(
             input.applicationId,
             actor.name || actor.email,
             input.notes
@@ -4488,6 +4541,12 @@ export const appRouter = router({
 
   // ============ MODULE PERMISSIONS ============
   modulePermissions: router({
+    /** Publicly expose only whether external recruitment applications are open. */
+    publicAvailability: publicProcedure.query(async () => {
+      const { isModuleEnabled } = await import("./config/modulePermissionService");
+      return { recruitment: isModuleEnabled("recruitment") };
+    }),
+
     /** Get all module definitions with access levels */
     modules: publicProcedure.query(async () => {
       const { MODULE_LIST, ACCESS_LEVEL_LABELS } = await import("./config/modulePermissionService");

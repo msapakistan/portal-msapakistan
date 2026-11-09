@@ -1,4 +1,4 @@
-import { and, eq, isNull, like, sql } from "drizzle-orm";
+import { and, eq, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import {
@@ -591,18 +591,28 @@ export async function approveMembershipApplication(
       throw new Error(`Membership ID ${membershipId} is already in use.`);
     }
 
+    const existingIdentity = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(or(eq(users.email, app.email.toLowerCase()), eq(users.cnic, app.cnic)))
+      .limit(1);
+    if (existingIdentity.length > 0) {
+      throw new Error("An account already exists for this applicant identity.");
+    }
+
     // Create the user account
     const user = memberAccounts.upsertUser({
       openId: `member:${membershipId}`,
       email: app.email.toLowerCase(),
       name: app.fullName,
+      cnic: app.cnic,
       phone: app.contactNumber,
       institution: app.institute,
       degree: app.courseOfStudy,
       graduationYear: app.graduationDate ? parseInt(app.graduationDate) : undefined,
       discipline: app.courseOfStudy,
       yearOfStudy: app.yearOfStudy,
-      localCouncil: undefined,
+      localCouncil: app.recruitmentLocalCouncil || undefined,
       membershipId: membershipId,
       membershipStatus: "Active",
       profilePhotoUrl: app.profilePhotoUrl || undefined,

@@ -40,37 +40,6 @@ describe("ModulePermissionService", () => {
       expect(getDefaultAccess()).toBe("view");
     });
 
-    describe("Module availability", () => {
-      it("keeps membership and recruitment enabled while other modules start closed", () => {
-        expect(CORE_MODULE_IDS).toEqual(["members", "recruitment"]);
-        expect(isModuleEnabled("members")).toBe(true);
-        expect(isModuleEnabled("recruitment")).toBe(true);
-        expect(isModuleEnabled("activities")).toBe(false);
-      });
-
-      it("allows a superadmin to open and close a non-core module", () => {
-        setModuleEnabled("activities", true);
-        expect(isModuleEnabled("activities")).toBe(true);
-
-        setModuleEnabled("activities", false);
-        expect(isModuleEnabled("activities")).toBe(false);
-      });
-
-      it("does not allow a core module to be disabled", () => {
-        expect(() => setModuleEnabled("members", false)).toThrow(/must remain enabled/i);
-        expect(() => setModuleEnabled("recruitment", false)).toThrow(/must remain enabled/i);
-      });
-
-      it("returns availability metadata for every module", () => {
-        const availability = getModuleAvailability();
-        expect(availability).toHaveLength(MODULE_LIST.length);
-        expect(availability.find((module) => module.id === "members")).toMatchObject({
-          enabled: true,
-          locked: true,
-        });
-      });
-    });
-
     it("can change default access", () => {
       setDefaultAccess("comment");
       expect(getDefaultAccess()).toBe("comment");
@@ -79,6 +48,49 @@ describe("ModulePermissionService", () => {
     it("can change default to edit", () => {
       setDefaultAccess("edit");
       expect(getDefaultAccess()).toBe("edit");
+    });
+  });
+
+  describe("Module availability", () => {
+    it("keeps membership enabled and defaults recruitment and other modules to off", () => {
+      expect(CORE_MODULE_IDS).toEqual(["members"]);
+      expect(isModuleEnabled("members")).toBe(true);
+      expect(isModuleEnabled("recruitment")).toBe(false);
+      expect(isModuleEnabled("activities")).toBe(false);
+    });
+
+    it("allows recruitment to be enabled and disabled independently", () => {
+      setModuleEnabled("recruitment", true);
+      expect(isModuleEnabled("recruitment")).toBe(true);
+
+      setModuleEnabled("recruitment", false);
+      expect(isModuleEnabled("recruitment")).toBe(false);
+      expect(isModuleEnabled("members")).toBe(true);
+    });
+
+    it("allows a superadmin to open and close other non-core modules", () => {
+      setModuleEnabled("activities", true);
+      expect(isModuleEnabled("activities")).toBe(true);
+
+      setModuleEnabled("activities", false);
+      expect(isModuleEnabled("activities")).toBe(false);
+    });
+
+    it("does not allow membership to be disabled", () => {
+      expect(() => setModuleEnabled("members", false)).toThrow(/must remain enabled/i);
+    });
+
+    it("returns availability metadata for every module", () => {
+      const availability = getModuleAvailability();
+      expect(availability).toHaveLength(MODULE_LIST.length);
+      expect(availability.find((module) => module.id === "members")).toMatchObject({
+        enabled: true,
+        locked: true,
+      });
+      expect(availability.find((module) => module.id === "recruitment")).toMatchObject({
+        enabled: false,
+        locked: false,
+      });
     });
   });
 

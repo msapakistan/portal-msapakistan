@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { CheckCircle2, Mail, ShieldCheck } from "lucide-react";
 
 export default function MembershipSubmitted() {
+  const recruitmentApplication = new URLSearchParams(window.location.search).get("type") === "recruitment";
   return (
     <main className="msap-page min-h-screen px-4 py-16">
       <div className="mx-auto max-w-xl text-center">
@@ -12,20 +13,19 @@ export default function MembershipSubmitted() {
           Application received
         </p>
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-[#1B355E]">
-          Thank you for applying to MSAP.
+          {recruitmentApplication ? "Your recruitment application is received." : "Thank you for applying to MSAP."}
         </h1>
         <p className="mt-4 text-sm leading-7 text-[#5D7086]">
-          Your application has been sent to the MSAP membership workflow. The verification team
-          will review your information and payment documents.
+          Your application has been sent to the MSAP membership workflow. The VPM will review your information
+          {recruitmentApplication ? " and recruitment materials" : " and payment documents"}.
         </p>
         <div className="mt-8 space-y-3 text-left">
           <div className="msap-card flex gap-3 p-4">
             <ShieldCheck className="mt-0.5 shrink-0 text-[#106E5B]" size={19} />
             <div>
-              <p className="font-semibold text-[#1B355E]">Approval comes first</p>
+              <p className="font-semibold text-[#1B355E]">Verification comes first</p>
               <p className="mt-1 text-sm text-[#5D7086]">
-                Your membership ID and membership letter are issued through the existing MSAP
-                approval workflow.
+                After approval, your membership ID is assigned and your portal account is created.
               </p>
             </div>
           </div>

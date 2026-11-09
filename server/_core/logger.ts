@@ -33,6 +33,12 @@ const REDACT_KEYS = [
   "authorization",
   "forgeApiKey",
   "FORGE_API_KEY",
+  "s3AccessKeyId",
+  "S3_ACCESS_KEY_ID",
+  "accessKeyId",
+  "s3SecretAccessKey",
+  "S3_SECRET_ACCESS_KEY",
+  "secretAccessKey",
 ];
 
 // ── Base logger ──────────────────────────────────────────────────────────────

@@ -33,24 +33,6 @@ function buildCsp(): string {
     "frame-ancestors 'self'",
   ];
 
-  // The MapView component loads the Google Maps JS API through the configured
-  // Forge proxy origin; allow that origin for scripts/images/connections when
-  // it is configured.
-  const forgeOrigin = ENV.forgeApiUrl?.trim();
-  if (forgeOrigin) {
-    let origin: string;
-    try {
-      origin = new URL(forgeOrigin).origin;
-    } catch {
-      origin = "";
-    }
-    if (origin) {
-      directives.push(`script-src 'self' ${origin}`);
-      directives.push(`img-src 'self' data: https: ${origin}`);
-      directives.push(`connect-src 'self' ${origin}`);
-    }
-  }
-
   return directives.join("; ");
 }
 

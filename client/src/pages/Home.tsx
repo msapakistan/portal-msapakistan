@@ -11,6 +11,7 @@ import {
   Vote,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 const STEPS = [
   {
@@ -43,6 +44,11 @@ const STEPS = [
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const recruitmentAvailability =
+    trpc.modulePermissions.publicAvailability.useQuery(undefined, {
+      staleTime: 60_000,
+    });
+  const recruitmentOpen = recruitmentAvailability.data?.recruitment === true;
 
   if (loading) {
     return (
@@ -141,6 +147,14 @@ export default function Home() {
                     >
                       Apply for Membership <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
+                    {recruitmentOpen && (
+                      <Button
+                        onClick={() => navigate("/recruitment/apply")}
+                        className="msap-landing-cta border border-white/30 bg-white/10 px-8 py-6 text-base text-white backdrop-blur-sm hover:border-white/50 hover:bg-white/20"
+                      >
+                        Apply for LC Recruitment <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -178,7 +192,7 @@ export default function Home() {
         {/* Members-only strip */}
         <div className="msap-landing-rise mt-10 flex items-center justify-center gap-2 rounded-full border border-[#D9E4E1] bg-white/80 px-5 py-2.5 text-center text-xs font-semibold text-[#5D7086] backdrop-blur-sm sm:text-sm" style={{ animationDelay: "0.6s" }}>
           <Vote className="h-4 w-4 text-[#106E5B]" />
-          Member-only area — sign in or apply for membership to continue
+          Member-only dashboard — prospective members can apply without an account
         </div>
       </main>
 

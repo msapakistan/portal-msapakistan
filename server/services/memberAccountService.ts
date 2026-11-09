@@ -178,6 +178,7 @@ export function upsertUser(input: {
   lastSignedIn?: Date | null;
   membershipId?: string | null;
   membershipStatus?: User["membershipStatus"] | null;
+  cnic?: string | null;
   phone?: string | null;
   institution?: string | null;
   degree?: string | null;
@@ -205,6 +206,7 @@ export function upsertUser(input: {
       lastSignedIn: input.lastSignedIn ?? existing.lastSignedIn,
       membershipId: input.membershipId ?? existing.membershipId,
       membershipStatus: input.membershipStatus ?? existing.membershipStatus,
+      cnic: input.cnic ?? existing.cnic,
       phone: input.phone ?? existing.phone,
       institution: input.institution ?? existing.institution,
       degree: input.degree ?? existing.degree,
@@ -231,7 +233,7 @@ export function upsertUser(input: {
     openId: input.openId,
     email: input.email ?? `${input.openId}@msap.local`,
     name: input.name ?? null,
-    cnic: null,
+    cnic: input.cnic ?? null,
     phone: input.phone ?? null,
     institution: input.institution ?? null,
     degree: input.degree ?? null,
@@ -436,6 +438,7 @@ export const OFFICIAL_MODULES = [
   "config",
   "interviews",
   "lifecycle",
+  "members",
 ] as const;
 export type OfficialModule = (typeof OFFICIAL_MODULES)[number];
 
@@ -483,6 +486,7 @@ export const OFFICIAL_MODULE_LABELS: Record<string, string> = {
   lifecycle: "Membership Lifecycle",
   cards: "Card Issuance Queue",
   audit: "Audit",
+  members: "Membership Applications",
   officials: "Officials Management",
 };
 
@@ -509,7 +513,7 @@ const POSITION_MODULE_MAP: Record<string, string[]> = {
   vpi: ["lifecycle", "officials", "governance"],
   vpe: ["communications"],
   vpcb: ["activities"],
-  vpm: ["documents", "governance"],
+  vpm: ["documents", "governance", "members"],
   supco: ["dashboard", "activities", "events", "elections", "finance", "documents", "communications", "plenary", "nef-nrf", "config", "modules", "governance", "governance-config", "lifecycle", "cards", "audit"],
   npo: ["activities"], // SCOPH
   norp: ["activities"], // SCORP

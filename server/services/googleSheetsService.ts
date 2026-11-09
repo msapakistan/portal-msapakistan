@@ -51,6 +51,11 @@ export type MembershipApplication = {
   conflictOrganization?: string;
   conflictRole?: string;
   paymentAccountName: string;
+  recruitmentLocalCouncil?: string;
+  recruitmentPosition?: string;
+  motivationLetter?: string;
+  planOfAction?: string;
+  cv?: MembershipUpload;
 };
 
 export interface AppsScriptResponse<T = unknown> {
@@ -149,10 +154,11 @@ export async function postToMSAPAppsScript<T = unknown>(
 }
 
 export async function submitMembershipApplication(
-  application: MembershipApplication
+  application: MembershipApplication,
+  options: { portalOnly?: boolean } = {}
 ) {
-  // When Apps Script is not configured, store locally
-  if (!hasAppsScript()) {
+  // Recruitment intake must remain in the portal's authoritative MySQL store.
+  if (options.portalOnly || !hasAppsScript()) {
     return submitMembershipApplicationLocal(application);
   }
 
@@ -226,11 +232,12 @@ async function submitMembershipApplicationLocal(
         }
       }
 
-      // Store uploads in the local filesystem via storagePut
+      // Store uploads in durable object storage via storagePut
       const { storagePut } = await import("../storage");
       let profilePhotoUrl: string | null = null;
       let feeReceiptUrl: string | null = null;
       let cnicCopyUrl: string | null = null;
+      let cvUrl: string | null = null;
 
       if (application.profilePhoto) {
         const buf = Buffer.from(application.profilePhoto.base64, "base64");
@@ -256,6 +263,13 @@ async function submitMembershipApplicationLocal(
         cnicCopyUrl = result.url;
       }
 
+      if (application.cv) {
+        const buf = Buffer.from(application.cv.base64, "base64");
+        const key = `applications/cv/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+        const result = await storagePut(key, buf, application.cv.mimeType);
+        cvUrl = result.url;
+      }
+
       // Insert the application
       await conn.query(
         `INSERT INTO membership_applications
@@ -265,9 +279,10 @@ async function submitMembershipApplicationLocal(
            otherInstitute, collegeRollNumber, discoverySources, otherDiscoverySource,
            paymentAccountName, graduationDate, conflictOfInterest, conflictOrganization,
            conflictRole, profilePhotoUrl, feeReceiptUrl, cnicCopyUrl,
+           recruitmentLocalCouncil, recruitmentPosition, motivationLetter, planOfAction, cvUrl,
            termsAccepted, undertakingAccepted, introductionAcknowledged,
            incompleteAcknowledgement, status)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           application.email,
           application.fullName,
@@ -297,6 +312,11 @@ async function submitMembershipApplicationLocal(
           profilePhotoUrl,
           feeReceiptUrl,
           cnicCopyUrl,
+          application.recruitmentLocalCouncil || null,
+          application.recruitmentPosition || null,
+          application.motivationLetter || null,
+          application.planOfAction || null,
+          cvUrl,
           application.termsAccepted,
           application.undertakingAccepted,
           application.introductionAcknowledged,

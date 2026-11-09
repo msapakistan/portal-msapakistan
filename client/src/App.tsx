@@ -23,6 +23,7 @@ import Documents from "./pages/Documents";
 import SettingsPage from "./pages/Settings";
 import MembershipCardGenerator from "./pages/MembershipCardGenerator";
 import MembershipSubmitted from "./pages/MembershipSubmitted";
+import AdminMembershipApplications from "./pages/AdminMembershipApplications";
 import Login from "./pages/Login";
 import OfficialLogin from "./pages/OfficialLogin";
 import OfficialHome from "./pages/OfficialHome";
@@ -121,6 +122,7 @@ function Router() {
           landing page, sign in, set-password and the membership form */}
       <Route path={"/join"} component={MembershipForm} />
       <Route path={"/membership"} component={MembershipForm} />
+      <Route path={"/recruitment/apply"} component={MembershipForm} />
       <Route path={"/membership/submitted"} component={MembershipSubmitted} />
 
       <Route path={"/dashboard"}>
@@ -235,6 +237,11 @@ function Router() {
       <Route path={"/admin/cards"}>
         <OfficialLayout>
           <AdminCardQueue />
+        </OfficialLayout>
+      </Route>
+      <Route path={"/admin/membership-applications"}>
+        <OfficialLayout>
+          <AdminMembershipApplications />
         </OfficialLayout>
       </Route>
       <Route path={"/admin/config"}>

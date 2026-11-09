@@ -40,7 +40,7 @@ export const MODULE_LIST = [
   { id: "events",       label: "Events",       description: "Conferences, competitions, summits, etc." },
   { id: "chapters",     label: "Chapters/LCs", description: "Local councils and regional chapters" },
   { id: "members",      label: "Membership Management", description: "Member records, profiles, verification, and membership history" },
-  { id: "recruitment",  label: "LC Recruitment", description: "Local Council vacancies, applications, interviews, and appointments" },
+  { id: "recruitment",  label: "Recruitment", description: "Local Council vacancies, applications, interviews, and appointments" },
   { id: "finance",      label: "Finance",      description: "Budgets, expenses, transactions" },
   { id: "governance",   label: "Governance",   description: "Bylaws, motions, plenary, decisions" },
   { id: "elections",    label: "Elections",    description: "Elections, nominations, voting" },
@@ -58,7 +58,7 @@ export const MODULE_LIST = [
 
 export type ModuleId = (typeof MODULE_LIST)[number]["id"];
 
-export const CORE_MODULE_IDS: readonly ModuleId[] = ["members", "recruitment"];
+export const CORE_MODULE_IDS: readonly ModuleId[] = ["members"];
 
 // Access level hierarchy for comparison
 const ACCESS_RANK: Record<ModuleAccessLevel, number> = {
@@ -168,8 +168,8 @@ export function getAllModuleAccess(
 }
 
 /**
- * Core modules are always on for the current development phase. All other
- * known modules remain off until a superadmin explicitly enables them.
+ * Membership stays on as a core module. Recruitment and all other modules
+ * remain off until a superadmin explicitly enables them.
  */
 export function isModuleEnabled(moduleId: string): boolean {
   const module = MODULE_LIST.find((item) => item.id === moduleId);

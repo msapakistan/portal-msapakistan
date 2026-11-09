@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 
 type UploadValue = { fileName: string; mimeType: string; base64: string };
+type PdfUploadValue = { fileName: string; mimeType: "application/pdf"; base64: string };
 
 type Gender = "Male" | "Female" | "Prefer not to say" | "Others";
 type CourseLevel = "Undergraduate (UG)" | "Postgraduate (PG)";
@@ -59,11 +60,16 @@ type FormState = {
   conflictOfInterest: string;
   conflictOrganization: string;
   conflictRole: string;
+  recruitmentLocalCouncil: string;
+  recruitmentPosition: string;
+  motivationLetter: string;
+  planOfAction: string;
   discoverySources: string[];
   otherDiscoverySource: string;
   paymentAccountName: string;
   feeReceipt?: UploadValue;
   cnicCopy?: UploadValue;
+  cv?: PdfUploadValue;
   undertakingAccepted: boolean;
   undertakingChoice: string;
   incompleteAcknowledgement: boolean;
@@ -93,6 +99,10 @@ const initialState: FormState = {
   conflictOfInterest: "No",
   conflictOrganization: "",
   conflictRole: "",
+  recruitmentLocalCouncil: "",
+  recruitmentPosition: "",
+  motivationLetter: "",
+  planOfAction: "",
   discoverySources: [],
   otherDiscoverySource: "",
   paymentAccountName: "",
@@ -361,6 +371,20 @@ async function readUpload(file: File): Promise<UploadValue> {
   return { fileName: file.name, mimeType: file.type || "application/octet-stream", base64 };
 }
 
+async function readPdfUpload(file: File): Promise<PdfUploadValue> {
+  if (file.size > 8_000_000) throw new Error("Please keep your CV under 8 MB.");
+  if (file.type && file.type.toLowerCase() !== "application/pdf") {
+    throw new Error("Please upload your CV as a PDF file.");
+  }
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(new Error("Could not read the selected CV."));
+    reader.readAsDataURL(file);
+  });
+  return { fileName: file.name, mimeType: "application/pdf", base64 };
+}
+
 async function readProfilePhoto(file: File): Promise<UploadValue> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Please upload an image file for your profile picture.");
@@ -442,7 +466,16 @@ function CollegePicker({ value, onChange }: { value: string; onChange: (value: s
 }
 
 export default function MembershipForm() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const recruitmentMode = location === "/recruitment/apply";
+  const recruitmentAvailability =
+    trpc.modulePermissions.publicAvailability.useQuery(undefined, {
+      enabled: recruitmentMode,
+      staleTime: 60_000,
+    });
+  const draftKey = recruitmentMode
+    ? "msap-recruitment-application-draft-v1"
+    : "msap-membership-draft-v2";
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialState);
   const [draftFound, setDraftFound] = useState(false);
@@ -451,9 +484,9 @@ export default function MembershipForm() {
   const completion = Math.round(((step + 1) / steps.length) * 100);
 
   useEffect(() => {
-    const saved = localStorage.getItem("msap-membership-draft-v2");
+    const saved = localStorage.getItem(draftKey);
     if (saved) setDraftFound(true);
-  }, []);
+  }, [draftKey]);
 
   useEffect(() => {
     const linkId = "msap-font-montserrat";
@@ -467,9 +500,9 @@ export default function MembershipForm() {
   }, []);
 
   useEffect(() => {
-    const { feeReceipt, cnicCopy, profilePhoto, ...draft } = form;
-    localStorage.setItem("msap-membership-draft-v2", JSON.stringify(draft));
-  }, [form]);
+    const { feeReceipt, cnicCopy, profilePhoto, cv, ...draft } = form;
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draftKey, form]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -479,12 +512,12 @@ export default function MembershipForm() {
   }));
 
   const loadDraft = () => {
-    const saved = localStorage.getItem("msap-membership-draft-v2");
+    const saved = localStorage.getItem(draftKey);
     if (!saved) return;
     try { setForm({ ...initialState, ...JSON.parse(saved) }); setDraftFound(false); toast.success("Your saved application has been restored."); } catch { toast.error("The saved draft could not be restored."); }
   };
 
-  const clearDraft = () => { localStorage.removeItem("msap-membership-draft-v2"); setDraftFound(false); setForm(initialState); setStep(0); toast.success("Saved draft cleared."); };
+  const clearDraft = () => { localStorage.removeItem(draftKey); setDraftFound(false); setForm(initialState); setStep(0); toast.success("Saved draft cleared."); };
 
   const validateStep = () => {
     if (step === 0 && !form.introductionAcknowledged) { toast.error("Please confirm that you have read the membership information before continuing."); return false; }
@@ -498,6 +531,16 @@ export default function MembershipForm() {
       if (form.reasonForJoining.trim().length < 10) { toast.error("Please provide at least 10 characters explaining why you want to join MSAP."); return false; }
       if (form.courseOfStudy === "Other" && !form.otherCourse.trim()) { toast.error("Please specify your course."); return false; }
       if (form.institute === "Other" && !form.otherInstitute.trim()) { toast.error("Please specify your institute."); return false; }
+      if (recruitmentMode && (
+        !form.recruitmentLocalCouncil.trim() ||
+        !form.recruitmentPosition.trim() ||
+        form.motivationLetter.trim().length < 20 ||
+        form.planOfAction.trim().length < 20 ||
+        !form.cv
+      )) {
+        toast.error("Complete your Local Council, position, motivation letter, plan of action, and PDF CV.");
+        return false;
+      }
     }
     if (step === 3) {
       if (!form.discoverySources.length || !form.paymentAccountName.trim()) { toast.error("Please complete the discovery and payment details."); return false; }
@@ -582,14 +625,47 @@ export default function MembershipForm() {
         submittedAt: new Date().toISOString(),
         feeReceipt: form.feeReceipt ? { fileName: form.feeReceipt.fileName } : undefined,
         cnicCopy: form.cnicCopy ? { fileName: form.cnicCopy.fileName } : undefined,
+        cv: form.cv ? { fileName: form.cv.fileName } : undefined,
       };
       sessionStorage.setItem("msap-membership-submission-v1", JSON.stringify(downloadRecord));
-      localStorage.removeItem("msap-membership-draft-v2");
-      navigate("/membership/submitted");
+      localStorage.removeItem(draftKey);
+      navigate(recruitmentMode ? "/membership/submitted?type=recruitment" : "/membership/submitted");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "We could not submit your application. Please try again.");
     }
   };
+
+  if (recruitmentMode && recruitmentAvailability.isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3F7F6] text-[#1B355E]">
+        <Loader2 className="h-7 w-7 animate-spin text-[#106E5B]" aria-label="Checking application availability" />
+      </main>
+    );
+  }
+  if (recruitmentMode && recruitmentAvailability.error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3F7F6] px-4 text-[#1B355E]">
+        <p role="alert" className="max-w-lg text-center text-sm text-[#42566E]">
+          We could not check recruitment availability. Please refresh the page or try again later.
+        </p>
+      </main>
+    );
+  }
+  if (recruitmentMode && !recruitmentAvailability.data?.recruitment) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3F7F6] px-4 text-[#1B355E]">
+        <div className="max-w-lg rounded-2xl border border-[#D9E4E1] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-2xl font-bold">Recruitment applications are closed</h1>
+          <p className="mt-3 text-sm leading-6 text-[#42566E]">
+            Local Council recruitment is not accepting applications right now. You can still apply for national membership.
+          </p>
+          <Button className="mt-6 bg-[#106E5B] text-white" onClick={() => navigate("/membership")}>
+            Apply for Membership
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="msap-membership-form min-h-screen bg-[#F3F7F6] text-[#1B355E]" style={{ fontFamily: "'Montserrat', system-ui, sans-serif" }}>
@@ -610,9 +686,9 @@ export default function MembershipForm() {
                   />
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/80">MSAP National Membership</p>
-                  <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Membership Application</h1>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">A guided digital application for the official MSA-Pakistan National Membership Form.</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/80">{recruitmentMode ? "MSAP Local Council Recruitment" : "MSAP National Membership"}</p>
+                  <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{recruitmentMode ? "Membership & Recruitment Application" : "Membership Application"}</h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">{recruitmentMode ? "Apply without an existing portal account. The VPM will verify your information before your member account is created." : "A guided digital application for the official MSA-Pakistan National Membership Form."}</p>
                 </div>
               </div>
               <div className="shrink-0 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
@@ -622,7 +698,7 @@ export default function MembershipForm() {
             </div>
           </div>
           <div className="flex flex-col gap-2 border-t border-[#E7EFEC] bg-[#F7FAF9] px-5 py-4 text-sm text-[#42566E] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <p>Keep your <span className="font-bold text-[#1B355E]">CNIC copy</span> and <span className="font-bold text-[#1B355E]">PKR 1,000 payment receipt</span> ready.</p>
+            <p>Keep your <span className="font-bold text-[#1B355E]">CNIC copy</span> and <span className="font-bold text-[#1B355E]">PKR 1,000 payment receipt</span> ready.{recruitmentMode && " You will also need a PDF CV and recruitment statements."}</p>
             <span className="inline-flex w-fit items-center rounded-full bg-[#E7F4F0] px-3 py-1 text-xs font-bold text-[#106E5B]">Student membership</span>
           </div>
         </div>
@@ -645,7 +721,7 @@ export default function MembershipForm() {
         <Card className="overflow-hidden rounded-[2rem] border-[#D9E4E1] bg-white shadow-[0_30px_90px_-48px_rgba(27,53,94,.42)]">
           <CardHeader className="border-b border-[#E7EFEC] bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAF9_100%)] px-5 py-7 sm:px-9 sm:py-8">
             <CardTitle className="msap-section-title text-xl font-extrabold tracking-tight sm:text-2xl">{steps[step].title}</CardTitle>
-            <CardDescription className="max-w-3xl text-sm leading-6 text-[#42566E]">{step === 0 ? "Please read the official membership information and agreement before beginning your application." : step === 1 ? "Enter your personal information exactly as you want it recorded in MSAP records." : step === 2 ? "Tell us about your current course, year, institute and academic goals." : step === 3 ? "Complete the membership discovery and payment information." : step === 4 ? "Upload the required documents, declare any organizational affiliation, and complete the Code of Conduct undertaking." : "Review every important detail before sending your application for verification."}</CardDescription>
+            <CardDescription className="max-w-3xl text-sm leading-6 text-[#42566E]">{step === 0 ? "Please read the official membership information and agreement before beginning your application." : step === 1 ? "Enter your personal information exactly as you want it recorded in MSAP records." : step === 2 ? recruitmentMode ? "Provide your academic details and the Local Council role you are applying for." : "Tell us about your current course, year, institute and academic goals." : step === 3 ? "Complete the membership discovery and payment information." : step === 4 ? "Upload the required documents, declare any organizational affiliation, and complete the Code of Conduct undertaking." : "Review every important detail before sending your application for verification."}</CardDescription>
           </CardHeader>
 
           <CardContent key={step} className="px-5 py-7 sm:px-9 sm:py-9">
@@ -729,6 +805,38 @@ export default function MembershipForm() {
                   <div />
                 </div>
                 <Field label="Why do you want to join the Medical Students’ Association of Pakistan?" required><Textarea value={form.reasonForJoining} onChange={(e) => set("reasonForJoining", e.target.value)} className="min-h-36" placeholder="Tell us what you hope to learn, contribute or experience through MSAP (minimum 10 characters)." /></Field>
+                {recruitmentMode && (
+                  <section className="space-y-6 rounded-3xl border border-[#A8D8CD] bg-[#F3F9F7] p-5 sm:p-6">
+                    <SectionHeading eyebrow="Local Council Recruitment" title="Your role application" description="This application is submitted without a portal account. Keep your role and Local Council selection accurate; the VPM will review your membership information before account access is issued." />
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <Field label="Local Council" required hint="Enter the Local Council you are applying to."><Input value={form.recruitmentLocalCouncil} onChange={(e) => set("recruitmentLocalCouncil", e.target.value)} maxLength={255} placeholder="e.g. Lahore Medical College LC" className="h-12" /></Field>
+                      <Field label="Position applied for" required><Input value={form.recruitmentPosition} onChange={(e) => set("recruitmentPosition", e.target.value)} maxLength={255} placeholder="Position title" className="h-12" /></Field>
+                      <div className="md:col-span-2"><Field label="Motivation Letter" required hint="Explain your motivation and relevant experience (20–10,000 characters)."><Textarea value={form.motivationLetter} onChange={(e) => set("motivationLetter", e.target.value)} minLength={20} maxLength={10000} className="min-h-36" placeholder="Why are you applying for this Local Council role?" /></Field></div>
+                      <div className="md:col-span-2"><Field label="Plan of Action" required hint="Outline the priorities, activities, and measurable outcomes you would pursue in this role (20–10,000 characters)."><Textarea value={form.planOfAction} onChange={(e) => set("planOfAction", e.target.value)} minLength={20} maxLength={10000} className="min-h-36" placeholder="What would you plan to accomplish in this position?" /></Field></div>
+                    </div>
+                    <div className="rounded-2xl border border-dashed border-[#A8D8CD] bg-white p-5">
+                      <Field label="CV (PDF)" required hint="PDF only, maximum 8 MB. Do not upload sensitive information unrelated to your application.">
+                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#1B355E,#106E5B)] px-4 py-3 text-sm font-semibold text-white">
+                          <UploadCloud size={17} /> Choose PDF CV
+                          <input type="file" className="hidden" accept="application/pdf,.pdf" onChange={async (event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) return;
+                            if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                              toast.error("Please upload a PDF CV.");
+                              return;
+                            }
+                            try {
+                              set("cv", await readPdfUpload(file));
+                            } catch (error) {
+                              toast.error(error instanceof Error ? error.message : "Could not read the CV.");
+                            }
+                          }} />
+                        </label>
+                      </Field>
+                      {form.cv && <p className="mt-3 text-sm font-medium text-[#106E5B]">Selected: {form.cv.fileName}</p>}
+                    </div>
+                  </section>
+                )}
               </div>
             )}
 

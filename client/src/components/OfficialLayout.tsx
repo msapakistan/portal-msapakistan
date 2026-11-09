@@ -89,6 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
       { module: null, label: "Home", path: "/official", icon: LayoutDashboard },
       { module: "dashboard", label: "Dashboard", path: "/admin/dashboard", icon: BarChart3 },
       { module: "cards", label: "Card Queue", path: "/admin/cards", icon: IdCard },
+      { module: "members", label: "Membership Applications", path: "/admin/membership-applications", icon: Users },
     ],
   },
   {

@@ -219,7 +219,7 @@ export default function AdminModulePermissions() {
               Module Availability
             </CardTitle>
             <CardDescription>
-              Keep this launch focused on Membership Management and LC Recruitment. Other modules are off until you are ready to develop and open them.
+              Keep Membership Management available while member data is migrated. Recruitment has its own switch and can stay off until migration is complete.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -240,7 +240,7 @@ export default function AdminModulePermissions() {
                   </p>
                   <Badge variant="outline" className="gap-1">
                     <LockKeyhole className="h-3 w-3" />
-                    Core modules stay on
+                    Membership stays on
                   </Badge>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -253,7 +253,7 @@ export default function AdminModulePermissions() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-medium text-sm">{module.label}</h3>
                           <Badge variant={module.enabled ? "default" : "secondary"}>
-                            {module.locked ? "Core" : module.enabled ? "Open" : "Closed"}
+                            {module.locked ? "Required" : module.enabled ? "Open" : "Off"}
                           </Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
