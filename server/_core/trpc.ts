@@ -136,7 +136,9 @@ const MODULE_PROCEDURE_PREFIXES: Record<string, string> = {
   "admin.institutions": "members",
 };
 
-function moduleForProcedurePath(path: string): string | null {
+export function moduleForProcedurePath(path: string): string | null {
+  if (path === "enterprise.nga.isActive") return null;
+
   const [root, child] = path.split(".");
   if (
     root === "auth" ||

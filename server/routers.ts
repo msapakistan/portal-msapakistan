@@ -3885,7 +3885,24 @@ export const appRouter = router({
         const active = ngas.find((n: any) =>
           ["plenary", "committees", "elections", "opening", "registration", "credentialing"].includes(n.status)
         );
-        return { active: !!active, meeting: active ?? null };
+        return {
+          active: !!active,
+          meeting: active
+            ? {
+                id: active.id,
+                title: active.title,
+                edition: active.edition,
+                status: active.status,
+                mode: active.mode,
+                scheduledStart: active.scheduledStart,
+                scheduledEnd: active.scheduledEnd,
+                venue: active.venue,
+                city: active.city,
+                quorumMet: active.quorumMet,
+                participationFee: active.participationFee,
+              }
+            : null,
+        };
       }),
     }),
 

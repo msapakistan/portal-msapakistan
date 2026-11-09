@@ -333,8 +333,8 @@ import { ClipboardList, ScrollText } from "lucide-react";
 
 // ─── Main Component ────────────────────────────────────────────────────
 export default function NgaPortal() {
-  const ngaQuery = (trpc as any).admin?.nga?.isActive?.useQuery?.();
-  const isLoading = ngaQuery?.isLoading ?? true;
+  const ngaQuery = trpc.enterprise.nga.isActive.useQuery();
+  const isLoading = ngaQuery.isLoading;
   const data = ngaQuery?.data;
 
   if (isLoading) {
@@ -344,6 +344,17 @@ export default function NgaPortal() {
           <Loader2 className="h-8 w-8 animate-spin text-[#138A73]" />
           <p className="text-sm text-[#5D7086]">Checking NGA status…</p>
         </div>
+      </div>
+    );
+  }
+
+  if (ngaQuery.error) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center" role="alert">
+        <p className="text-sm text-[#5D7086]">Could not load NGA status. Please try again.</p>
+        <Button variant="outline" onClick={() => ngaQuery.refetch()}>
+          Retry
+        </Button>
       </div>
     );
   }
