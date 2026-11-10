@@ -8,6 +8,7 @@ import { StatCard } from "@/components/StatCard";
 import {
   Award,
   BookOpen,
+  Briefcase,
   Building2,
   Calendar,
   CheckCircle,
@@ -290,6 +291,7 @@ export default function MemberDashboard() {
           </h3>
           <div className="msap-reveal-stagger grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {[
+              { label: "Opportunities", desc: "Explore & apply", icon: <Briefcase className="h-5 w-5" />, to: "/opportunities" },
               { label: "Activities", desc: "View & join activities", icon: <Calendar className="h-5 w-5" />, to: "/activities" },
               { label: "Events", desc: "Browse upcoming events", icon: <Calendar className="h-5 w-5" />, to: "/events" },
               { label: "Elections", desc: "Vote in elections", icon: <Users className="h-5 w-5" />, to: "/elections" },

@@ -754,7 +754,7 @@ export const appRouter = router({
 
   // ============ OPPORTUNITIES ROUTES ============
   opportunity: router({
-    list: publicProcedure
+    list: protectedProcedure
       .input(
         z.object({
           limit: z.number().default(50),

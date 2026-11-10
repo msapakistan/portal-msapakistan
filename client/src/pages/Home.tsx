@@ -11,7 +11,6 @@ import {
   Vote,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { trpc } from "@/lib/trpc";
 
 const STEPS = [
   {
@@ -42,13 +41,8 @@ const STEPS = [
  * MSAP website.
  */
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
-  const recruitmentAvailability =
-    trpc.modulePermissions.publicAvailability.useQuery(undefined, {
-      staleTime: 60_000,
-    });
-  const recruitmentOpen = recruitmentAvailability.data?.recruitment === true;
 
   if (loading) {
     return (
@@ -147,14 +141,6 @@ export default function Home() {
                     >
                       Apply for Membership <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
-                    {recruitmentOpen && (
-                      <Button
-                        onClick={() => navigate("/recruitment/apply")}
-                        className="msap-landing-cta border border-white/30 bg-white/10 px-8 py-6 text-base text-white backdrop-blur-sm hover:border-white/50 hover:bg-white/20"
-                      >
-                        Apply for LC Recruitment <ArrowRight className="ml-2 h-5 w-5" />
-                      </Button>
-                    )}
                   </>
                 )}
               </div>
